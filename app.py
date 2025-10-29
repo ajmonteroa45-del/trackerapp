@@ -225,14 +225,25 @@ with st.form("extras_form"):
             json.dump(summary, f, ensure_ascii=False, indent=2)
         st.success("Resumen guardado ✅" if lang=="Español" else "Summary saved ✅")
         # generate image and show
+        # generate image and show
         buf = generate_balance_image(df_today.to_dict("records"), extras_total, gastos_varios, combustible, bonos, alias)
         st.image(buf, use_column_width=True)
-        # offer download of CSV and image
-        with open(csvp, "rb") as f:
-            st.download_button("Descargar CSV (todos tus registros)" if lang=="Español" else "Download CSV (all your records)", data=f, file_name=os.path.basename(csvp), mime="text/csv")
-        # image download
-        st.download_button("Descargar imagen (PNG)" if lang=="Español" else "Download image (PNG)", data=buf, file_name=f"balance_{date.today().isoformat()}.png", mime="image/png")
+        st.download_button(
+            "Descargar imagen (PNG)" if lang == "Español" else "Download image (PNG)",
+            data=buf,
+            file_name=f"balance_{date.today().isoformat()}.png",
+            mime="image/png"
+        )
 
+# download CSV button (moved outside of form)
+if os.path.exists(csvp):
+    with open(csvp, "rb") as f:
+        st.download_button(
+            "Descargar CSV (todos tus registros)" if lang == "Español" else "Download CSV (all your records)",
+            data=f,
+            file_name=os.path.basename(csvp),
+            mime="text/csv"
+        )
 # logout option
 if st.button("Cerrar sesión" if lang=="Español" else "Logout"):
     if "user" in st.session_state:
