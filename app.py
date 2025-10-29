@@ -176,7 +176,7 @@ with st.form("trips_form"):
         df_new = pd.DataFrame(rows)
         df_new.to_csv(csv_path, mode="a", header=False, index=False)
         st.success("Viajes guardados ✅" if lang=="Español" else "Trips saved ✅")
-        st.experimental_rerun()
+        st.rerun()
 
 # Show today's trips for this user
 st.markdown("### 📋 Registro actual")
