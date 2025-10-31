@@ -268,7 +268,7 @@ if not alias:
                 st.sidebar.success("Usuario creado ✅" if lang=="Español" else "User created ✅")
 
 if "user" not in st.session_state:
-    st.info("Ingresa tu alias y PIN en la barra lateral para empezar." if lang=="Español" else "Enter your alias and PIN in the sidebar to start.")
+    st.info("Ingresa tu alias y PIN en la barra lateral para empezar.")
     st.stop()
 
 alias = st.session_state["user"]
