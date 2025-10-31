@@ -1,8 +1,8 @@
-# app.py - Trip Counter (TrackerApp v3.0 - Cloud Ready)
+# app.py - Trip Counter (TrackerApp v4.0 - Cloud Ready + GPH)
 import streamlit as st
 import pandas as pd
 import os, json, hashlib, re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta # <-- timedelta es crucial para el cálculo de tiempo
 from io import BytesIO
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -54,8 +54,9 @@ def load_data_from_sheet(sheet_title):
         if "spreadsheet not found" in str(e).lower():
             if sheet_title == GSHEET_USERS_TITLE:
                 return pd.DataFrame(columns=["alias", "pin_hash"])
+            # MODIFICACIÓN 1: Añadir "ganancia_por_hora" a la hoja de Trips
             if sheet_title == GSHEET_TRIPS_TITLE:
-                return pd.DataFrame(columns=["alias", "fecha","tipo","viaje_num","hora_inicio","hora_fin","ganancia_base","aeropuerto","propina","total_viaje"])
+                return pd.DataFrame(columns=["alias", "fecha","tipo","viaje_num","hora_inicio","hora_fin","ganancia_base","aeropuerto","propina","total_viaje", "ganancia_por_hora"]) 
             if sheet_title == GSHEET_GASTOS_TITLE:
                 return pd.DataFrame(columns=["alias", "fecha","concepto","monto"])
             if sheet_title == GSHEET_SUMMARIES_TITLE:
@@ -164,43 +165,240 @@ def generate_balance_image(rows, ingresos, gastos_total, combustible, neto, alia
     return buf # Retorna el buffer de la imagen.
 
 # ----- Styling (se mantiene) -----
-# ... (código de estilos) ...
+# Se asume que aquí va el código de estilos (ej. CSS, markdown style)
+st.markdown(f"""
+    <style>
+        .stButton>button {{
+            background-color: {BUTTON_COLOR};
+            color: white;
+            border-radius: 12px;
+            border: 0;
+            padding: 10px 24px;
+        }}
+        .stButton>button:hover {{
+            background-color: #0d297d; /* Darker shade on hover */
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+st.title(APP_NAME)
 
 
 # ----- Sidebar: Login Actualizado -----
-# ... (código de sidebar) ...
-# La lógica de registro se mantiene, pero llama a las nuevas funciones de Sheets:
-if col2.button("Registrar", key="sidebar_register"):
-    if not alias_input or not pin_input:
-        st.sidebar.error("Alias y PIN requeridos")
-    else:
-        u = load_users() # Carga desde Sheets
-        if alias_input in u:
-            st.sidebar.error("Alias ya existe. Elige otro.")
+# Se asume que aquí va el código de sidebar
+alias = st.session_state.get("user")
+st.sidebar.title("Login / Registro")
+if not alias:
+    alias_input = st.sidebar.text_input("Alias", key="sidebar_alias")
+    pin_input = st.sidebar.text_input("PIN (4 dígitos)", type="password", key="sidebar_pin", max_chars=4)
+    col1, col2 = st.sidebar.columns(2)
+    
+    if col1.button("Ingresar", key="sidebar_login"):
+        if not alias_input or not pin_input:
+            st.sidebar.error("Alias y PIN requeridos")
         else:
-            u[alias_input] = {"pin_hash": hash_pin(pin_input)}
-            save_users(u) # Guarda en Sheets
-            # Ya no es necesario 'ensure_user_csv/gastos', Sheets se maneja al leer/escribir.
-            st.session_state["user"] = alias_input
-            st.sidebar.success("Usuario creado ✅")
+            u = load_users()
+            if alias_input in u and u[alias_input]["pin_hash"] == hash_pin(pin_input):
+                st.session_state["user"] = alias_input
+                st.sidebar.success(f"Bienvenido, {alias_input}!")
+                st.rerun()
+            else:
+                st.sidebar.error("Alias o PIN incorrectos")
 
-# ... (código para alias y st.stop()) ...
+    # La lógica de registro se mantiene, pero llama a las nuevas funciones de Sheets:
+    if col2.button("Registrar", key="sidebar_register"):
+        if not alias_input or not pin_input:
+            st.sidebar.error("Alias y PIN requeridos")
+        else:
+            u = load_users() # Carga desde Sheets
+            if alias_input in u:
+                st.sidebar.error("Alias ya existe. Elige otro.")
+            else:
+                u[alias_input] = {"pin_hash": hash_pin(pin_input)}
+                save_users(u) # Guarda en Sheets
+                # Ya no es necesario 'ensure_user_csv/gastos', Sheets se maneja al leer/escribir.
+                st.session_state["user"] = alias_input
+                st.sidebar.success("Usuario creado ✅")
+
+# Si el usuario no ha iniciado sesión, detenemos la ejecución del resto de la app
+if not alias:
+    st.info("Ingresa o regístrate para usar el Trip Counter.")
+    st.stop()
 
 
-# ----- Tabs (top menu) y Session State (se mantiene) -----
-# ... (código de tabs y session state) ...
+# ----- Tabs (top menu) y Session State -----
+# Se asume que aquí va el código de tabs y session state
+tabs = st.tabs(["Registrar viajes", "Viajes extra", "Gastos", "Kilometraje y Generar resumen", "Resúmenes", "Imágenes", "Exportar / Descargar"])
+tab_trips, tab_extras, tab_gastos, tab_km, tab_summaries, tab_images, tab_export = tabs
+
+if "trips_temp" not in st.session_state:
+    st.session_state["trips_temp"] = []
+if "extras_temp" not in st.session_state:
+    st.session_state["extras_temp"] = []
+if "gastos_temp" not in st.session_state:
+    st.session_state["gastos_temp"] = []
 
 
-# ---- Tab: Registrar viajes (se mantiene) ----
-# ... (código de registro de viajes) ...
+# ---- Tab: Registrar viajes (CON LÓGICA GPH) ----
+with tab_trips:
+    st.markdown("### ➕ Registrar viaje")
+    col1, col2, col3, col4 = st.columns([2,2,2,1])
+    with col1:
+        hi = st.text_input("Hora inicio (HH:MM)", key="trip_hi")
+    with col2:
+        hf = st.text_input("Hora fin (HH:MM)", key="trip_hf")
+    with col3:
+        gan = st.number_input("Ganancia base S/ ", min_value=0.0, format="%.2f", key="trip_gan")
+    with col4:
+        aer = st.checkbox("Aeropuerto (+S/6.50)", key="trip_aer")
+    prop = st.number_input("Propina S/ ", min_value=0.0, format="%.2f", key="trip_prop")
 
+    # MODIFICACIÓN 2: Lógica de GPH para viajes normales
+    if st.button("Agregar viaje", key="add_trip_btn"):
+        # validations
+        errors = []
+        if not validate_time_string(hi):
+            errors.append("Hora inicio inválida. Formato HH:MM")
+        if not validate_time_string(hf):
+            errors.append("Hora fin inválida. Formato HH:MM")
+        if errors:
+            st.error("; ".join(errors))
+        else:
+            # --- INICIA LÓGICA DE GPH ---
+            hi_str = hi.strip()
+            hf_str = hf.strip()
+            
+            fmt = "%H:%M"
+            t_inicio = datetime.strptime(hi_str, fmt)
+            t_fin = datetime.strptime(hf_str, fmt)
 
-# ---- Tab: Viajes extra (se mantiene) ----
-# ... (código de registro de viajes extra) ...
+            # Manejo de cruce de medianoche
+            if t_fin < t_inicio:
+                duracion = (t_fin + timedelta(days=1)) - t_inicio
+            else:
+                duracion = t_fin - t_inicio
+            
+            duracion_en_horas = duracion.total_seconds() / 3600.0
 
+            aeropuerto_val = 6.5 if aer else 0.0
+            total_v = round(float(gan) + aeropuerto_val + float(prop), 2)
+            gph = 0.0
+            if duracion_en_horas > 0:
+                gph = round(total_v / duracion_en_horas, 2)
+            # --- FIN LÓGICA DE GPH ---
 
-# ---- Tab: Gastos (se mantiene) ----
-# ... (código de registro de gastos) ...
+            existing_count = sum(1 for r in st.session_state["trips_temp"])
+            trip = {
+                "fecha": date.today().isoformat(),
+                "tipo": "normal",
+                "viaje_num": existing_count + 1,
+                "hora_inicio": hi_str,
+                "hora_fin": hf_str,
+                "ganancia_base": float(gan),
+                "aeropuerto": aeropuerto_val,
+                "propina": float(prop),
+                "total_viaje": total_v,
+                "ganancia_por_hora": gph  # <-- CAMPO AÑADIDO
+            }
+            st.session_state["trips_temp"].append(trip)
+            st.success(f"Viaje agregado (GPH: S/ {gph}) ✅") # <-- Feedback inmediato
+
+    # Mostrar viajes temporales
+    if st.session_state["trips_temp"]:
+        st.markdown("#### Viajes agregados hoy (pendientes de guardar)")
+        df_temp = pd.DataFrame(st.session_state["trips_temp"])
+        st.dataframe(df_temp)
+
+# ---- Tab: Viajes extra (CON LÓGICA GPH y SIN AEROPUERTO) ----
+with tab_extras:
+    st.markdown("### ✚ Registrar viaje extra (fuera de la app)")
+    # MODIFICACIÓN 3.1: Se eliminó la columna del checkbox de aeropuerto
+    col1, col2, col3 = st.columns(3) 
+    with col1:
+        hi_e = st.text_input("Hora inicio (HH:MM)", key="extra_hi")
+    with col2:
+        hf_e = st.text_input("Hora fin (HH:MM)", key="extra_hf")
+    with col3:
+        gan_e = st.number_input("Ganancia S/ ", min_value=0.0, format="%.2f", key="extra_gan")
+    
+    prop_e = st.number_input("Propina S/ ", min_value=0.0, format="%.2f", key="extra_prop")
+    
+    # MODIFICACIÓN 3.2: Lógica de GPH para viajes extra (sin tarifa de aeropuerto)
+    if st.button("Agregar viaje extra", key="add_extra_btn"):
+        errors = []
+        if not validate_time_string(hi_e):
+            errors.append("Hora inicio inválida. Formato HH:MM")
+        if not validate_time_string(hf_e):
+            errors.append("Hora fin inválida. Formato HH:MM")
+        if errors:
+            st.error("; ".join(errors))
+        else:
+            # --- INICIA LÓGICA DE GPH ---
+            hi_str = hi_e.strip()
+            hf_str = hf_e.strip()
+            fmt = "%H:%M"
+            t_inicio = datetime.strptime(hi_str, fmt)
+            t_fin = datetime.strptime(hf_str, fmt)
+
+            if t_fin < t_inicio:
+                duracion = (t_fin + timedelta(days=1)) - t_inicio
+            else:
+                duracion = t_fin - t_inicio
+            
+            duracion_en_horas = duracion.total_seconds() / 3600.0
+
+            # CÁLCULO DE TOTAL (SIN AEROPUERTO)
+            total_v = round(float(gan_e) + float(prop_e), 2)
+            
+            gph = 0.0
+            if duracion_en_horas > 0:
+                gph = round(total_v / duracion_en_horas, 2)
+            # --- FIN LÓGICA DE GPH ---
+
+            extra_trip = {
+                "fecha": date.today().isoformat(),
+                "tipo": "extra",
+                "viaje_num": len(st.session_state["extras_temp"]) + 1,
+                "hora_inicio": hi_str,
+                "hora_fin": hf_str,
+                "ganancia_base": float(gan_e),
+                "aeropuerto": 0.0,  # Se mantiene en 0.0 para consistencia de la tabla
+                "propina": float(prop_e),
+                "total_viaje": total_v,
+                "ganancia_por_hora": gph # <-- CAMPO AÑADIDO
+            }
+            st.session_state["extras_temp"].append(extra_trip)
+            st.success(f"Viaje extra agregado (GPH: S/ {gph}) ✅")
+
+    # Mostrar viajes temporales
+    if st.session_state["extras_temp"]:
+        st.markdown("#### Viajes extra agregados hoy (pendientes de guardar)")
+        df_temp = pd.DataFrame(st.session_state["extras_temp"])
+        st.dataframe(df_temp)
+
+# ---- Tab: Gastos ----
+with tab_gastos:
+    st.markdown("### 💸 Registrar gastos")
+    
+    concepto_in = st.text_input("Concepto (ej: almuerzo, peaje, lavado)", key="gasto_concepto")
+    monto_in = st.number_input("Monto (S/)", min_value=0.0, format="%.2f", key="gasto_monto")
+    
+    if st.button("Agregar gasto", key="add_gasto_btn"):
+        if not concepto_in or monto_in <= 0:
+            st.error("Concepto y monto válidos requeridos.")
+        else:
+            gasto = {
+                "fecha": date.today().isoformat(),
+                "concepto": concepto_in.strip(),
+                "monto": float(monto_in)
+            }
+            st.session_state["gastos_temp"].append(gasto)
+            st.success("Gasto agregado ✅")
+
+    # Mostrar gastos temporales
+    if st.session_state["gastos_temp"]:
+        st.markdown("#### Gastos agregados hoy (pendientes de guardar)")
+        df_temp = pd.DataFrame(st.session_state["gastos_temp"])
+        st.dataframe(df_temp)
 
 
 # ---- Tab: Kilometraje y generar resumen (Lógica de guardado en Sheets) ----
@@ -352,5 +550,7 @@ with tab_export:
         except Exception as e:
             st.error("Error al eliminar archivos: " + str(e))
 
-# ---- Logout button at bottom (se mantiene) ----
-# ... (código de logout) ...
+# ---- Logout button at bottom ----
+if alias and st.sidebar.button(f"Cerrar sesión ({alias})"):
+    st.session_state["user"] = None
+    st.rerun()
