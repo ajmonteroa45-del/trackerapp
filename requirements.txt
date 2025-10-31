@@ -1,6 +1,5 @@
 streamlit
 pandas
+matplotlib
+Pillow
 gspread
-st-gsheets-connection  # <-- ¡ESTA ES LA LÍNEA CORREGIDA!
-matplotlib==3.7.1
-Pillow==9.4.0
