@@ -1,6 +1,6 @@
 streamlit
 pandas
-matplotlib
-Pillow
 gspread
 streamlit-gsheets
+matplotlib==3.7.1  # Forzamos una versión estable
+Pillow==9.4.0      # Forzamos una versión estable
