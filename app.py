@@ -268,7 +268,8 @@ if col1.button("Ingresar", key="sidebar_login"):
                 st.sidebar.error("Alias o PIN incorrectos")
 
     # La lógica de registro se mantiene, pero llama a las nuevas funciones de Sheets:
-    if col2.button("Registrar", key="sidebar_register"):
+    
+if col2.button("Registrar", key="sidebar_register"):
         if not alias_input or not pin_input:
             st.sidebar.error("Alias y PIN requeridos")
         else:
