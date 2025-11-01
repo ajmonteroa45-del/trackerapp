@@ -53,9 +53,10 @@ def get_gspread_client():
         return client
         
     except Exception as e:
+        # Si el error es PermissionError o de formato, lo atrapamos.
         st.error(f"Error crítico de autenticación. Verifique st.secrets y permisos: {e}")
         st.stop()
-        
+                
 # --- Helpers Actualizados (Google Sheets) ---
 
 @st.cache_data(ttl=3600)
