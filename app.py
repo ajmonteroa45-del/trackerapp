@@ -2,11 +2,15 @@
 import streamlit as st
 import pandas as pd
 import os, json, hashlib, re
-from datetime import date, datetime, timedelta # Necesario para calcular la duración
+from datetime import date, datetime, timedelta 
 from io import BytesIO
 import matplotlib.pyplot as plt
 from PIL import Image
-import gspread # Librería esencial para la conexión directa
+import gspread 
+
+# AÑADE ESTA LÍNEA CRÍTICA
+import google.oauth2.service_account 
+# FIN DE LA LÍNEA CRÍTICA
 
 # ----- Configuración y Conexión -----
 st.set_page_config(page_title="Trip Counter", layout="wide", initial_sidebar_state="auto")
