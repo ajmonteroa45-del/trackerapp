@@ -28,13 +28,13 @@ SHEET_IDS = {
 }
 
 
-# --- Lógica de Conexión GSPREAD Definitiva (Usando BytesIO + from_json) ---
+# --- Lógica de Conexión GSPREAD Definitiva (Usando from_dict) ---
 @st.cache_resource(ttl=3600)
 def get_gspread_client():
     try:
         gspread_info = st.secrets["connections"]["gsheets"]
         
-        # 1. Reconstrucción del diccionario de credenciales (usando .replace para la clave)
+        # 1. Reconstrucción del diccionario de credenciales
         creds_dict = {
             "type": gspread_info["type"],
             "project_id": gspread_info["project_id"],
@@ -49,20 +49,16 @@ def get_gspread_client():
             "client_x509_cert_url": gspread_info["client_x509_cert_url"]
         }
         
-        # 2. CONVERSIÓN CRÍTICA: Convertir el diccionario a un objeto JSON en memoria (BytesIO).
-        # Esto resuelve el error "Cannot convert str to a seekable bit stream" al simular un archivo.
-        json_data = json.dumps(creds_dict).encode('utf-8')
-        credentials_file = BytesIO(json_data)
-
-        # 3. Autenticar usando service_account_json con el objeto BytesIO
-        client = gspread.service_account_json(credentials_file) 
+        # 2. AUTENTICACIÓN FINAL: Usar la función más estable (service_account_from_dict).
+        # Esto debería funcionar porque ya eliminamos los problemas de formato y permisos.
+        client = gspread.service_account_from_dict(creds_dict) 
         return client
         
     except Exception as e:
-        # Si el error persiste, la clave no es válida O la hoja no está compartida.
+        # Si el error persiste, la clave es incorrecta O la hoja no está compartida.
         st.error(f"Error CRÍTICO de autenticación. La clave es rechazada. {e}")
         st.stop()
-
+        
 # --- Helpers Actualizados (Google Sheets) ---
 
 @st.cache_data(ttl=3600)
