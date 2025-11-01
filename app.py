@@ -254,12 +254,13 @@ if not alias:
     pin_input = st.sidebar.text_input("PIN (4 dígitos)", type="password", key="sidebar_pin", max_chars=4)
     col1, col2 = st.sidebar.columns(2)
     
-    if col1.button("Ingresar", key="sidebar_login"):
+if col1.button("Ingresar", key="sidebar_login"):
         if not alias_input or not pin_input:
             st.sidebar.error("Alias y PIN requeridos")
         else:
             u = load_users()
-            if alias_input in u and u[alias_input]["pin_hash"] == hash_pin(pin_input):
+            # Se usa pin_input
+            if alias_input in u and u[alias_input]["pin_hash"] == hash_pin(pin_input): 
                 st.session_state["user"] = alias_input
                 st.sidebar.success(f"Bienvenido, {alias_input}!")
                 st.rerun()
@@ -272,14 +273,21 @@ if not alias:
             st.sidebar.error("Alias y PIN requeridos")
         else:
             u = load_users()
-            if alias in u:
-                st.sidebar.error("Alias ya existe. Elige otro." if lang=="Español" else "Alias exists. Choose another.")
+            # 1. CORREGIDO: Usamos alias_input en lugar de 'alias'
+            if alias_input in u: 
+                # 2. CORREGIDO: Eliminamos la lógica 'if lang=="Español"'
+                st.sidebar.error("Alias ya existe. Elige otro.") 
             else:
-                u[alias] = {"pin_hash": hash_pin(pin)}
+                # 3. CORREGIDO: Usamos alias_input y pin_input
+                u[alias_input] = {"pin_hash": hash_pin(pin_input)} 
                 save_users(u)
-                ensure_user_csv(alias)
-                st.session_state["user"] = alias
-                st.sidebar.success("Usuario creado ✅" if lang=="Español" else "User created ✅")
+                
+                # Ojo: ensure_user_csv ya no se usa con Google Sheets. Lo he comentado/eliminado.
+                # ensure_user_csv(alias_input) 
+
+                st.session_state["user"] = alias_input
+                # 4. CORREGIDO: Eliminamos la lógica 'if lang=="Español"'
+                st.sidebar.success("Usuario creado ✅")
 
 if "user" not in st.session_state:
     st.info("Ingresa tu alias y PIN en la barra lateral para empezar.")
