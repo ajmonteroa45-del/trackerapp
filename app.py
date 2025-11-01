@@ -101,9 +101,23 @@ def load_data_from_sheet(sheet_title):
         return pd.DataFrame()
 
 def load_users():
-    df = load_data_from_sheet(GSHEET_USERS_TITLE)
-    return {row['alias']: {"pin_hash": row['pin_hash']} for index, row in df.iterrows()} if not df.empty else {}
-
+    # Llama al cliente dentro de la función (más seguro para Streamlit)
+    client = get_gspread_client() 
+    
+    # Abrir la hoja de usuarios usando el cliente
+    try:
+        sh = client.open(GSHEET_USERS_TITLE)
+        ws = sh.get_worksheet(0)
+        
+        data = ws.get_all_records(head=1, empty2zero=True)
+        df = pd.DataFrame(data)
+        
+        # El resto de la lógica de load_users se mantiene
+        return {row['alias']: {"pin_hash": row['pin_hash']} for index, row in df.iterrows()} if not df.empty else {}
+    except Exception:
+        # Si falla (hoja no existe o error), retorna diccionario vacío
+        return {}
+    
 def save_users(u):
     df = pd.DataFrame([{"alias": k, "pin_hash": v["pin_hash"]} for k, v in u.items()])
     
