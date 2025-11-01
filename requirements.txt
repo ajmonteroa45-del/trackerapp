@@ -2,4 +2,5 @@ streamlit
 pandas
 matplotlib
 Pillow
-gspread
+gspread==6.0.2  # <--- FUERZA ESTA VERSIÓN
+google-auth==2.23.4  # <--- FUERZA ESTA VERSIÓN
