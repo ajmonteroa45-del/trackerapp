@@ -28,7 +28,7 @@ SHEET_IDS = {
 }
 
 
-# --- Lógica de Conexión GSPREAD Definitiva (Usando from_dict) ---
+# --- Lógica de Conexión GSPREAD Definitiva (Usando BytesIO + from_json) ---
 @st.cache_resource(ttl=3600)
 def get_gspread_client():
     try:
@@ -39,7 +39,6 @@ def get_gspread_client():
             "type": gspread_info["type"],
             "project_id": gspread_info["project_id"],
             "private_key_id": gspread_info["private_key_id"],
-            # CRÍTICO: Revertimos el formato TOML a saltos de línea reales (\n)
             "private_key": gspread_info["private_key"].replace("\\n", "\n"), 
             "client_email": gspread_info["client_email"],
             "client_id": gspread_info["client_id"],
@@ -49,16 +48,28 @@ def get_gspread_client():
             "client_x509_cert_url": gspread_info["client_x509_cert_url"]
         }
         
-        # 2. AUTENTICACIÓN FINAL: Usar la función más estable (service_account_from_dict).
-        # Esto debería funcionar porque ya eliminamos los problemas de formato y permisos.
-        client = gspread.service_account_from_dict(creds_dict) 
+        # 2. AUTENTICACIÓN FINAL: Convertir el dict a JSON y pasarla a la función
+        # que SÍ existe: service_account_from_dict.
+        # Esto es un workaround para el error de 'seekable bit stream'.
+        
+        # Convertimos el diccionario Python a una cadena JSON
+        json_string = json.dumps(creds_dict)
+
+        # Usamos la función de la librería 'google.oauth2.service_account' que puede leer el string JSON
+        # Esta es la que la librería gspread usa internamente para 'from_dict'.
+        import google.oauth2.service_account
+        
+        credentials = google.oauth2.service_account.Credentials.from_service_account_info(creds_dict)
+        
+        # 3. CREAR EL CLIENTE DE GSPREAD USANDO LAS CREDENCIALES
+        client = gspread.Client(auth=credentials)
         return client
         
     except Exception as e:
         # Si el error persiste, la clave es incorrecta O la hoja no está compartida.
         st.error(f"Error CRÍTICO de autenticación. La clave es rechazada. {e}")
         st.stop()
-        
+
 # --- Helpers Actualizados (Google Sheets) ---
 
 @st.cache_data(ttl=3600)
