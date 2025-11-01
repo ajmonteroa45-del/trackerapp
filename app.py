@@ -28,18 +28,19 @@ SHEET_IDS = {
 }
 
 
-# --- Lógica de Conexión GSPREAD Definitiva (Usando from_dict) ---
+# --- Lógica de Conexión GSPREAD Definitiva (Usando BytesIO + from_json) ---
 @st.cache_resource(ttl=3600)
 def get_gspread_client():
     try:
         gspread_info = st.secrets["connections"]["gsheets"]
         
+        # 1. Reconstrucción del diccionario de credenciales (usando .replace para la clave)
         creds_dict = {
             "type": gspread_info["type"],
             "project_id": gspread_info["project_id"],
             "private_key_id": gspread_info["private_key_id"],
-            # Revertimos '\n' (que pusiste en Secrets) a saltos de línea reales
-            "private_key": gspread_info["private_key"].replace("\\n", "\n"),
+            # CRÍTICO: Revertimos el formato TOML a saltos de línea reales (\n)
+            "private_key": gspread_info["private_key"].replace("\\n", "\n"), 
             "client_email": gspread_info["client_email"],
             "client_id": gspread_info["client_id"],
             "auth_uri": gspread_info["auth_uri"],
@@ -47,16 +48,21 @@ def get_gspread_client():
             "auth_provider_x509_cert_url": gspread_info["auth_provider_x509_cert_url"],
             "client_x509_cert_url": gspread_info["client_x509_cert_url"]
         }
+        
+        # 2. CONVERSIÓN CRÍTICA: Convertir el diccionario a un objeto JSON en memoria (BytesIO).
+        # Esto resuelve el error "Cannot convert str to a seekable bit stream" al simular un archivo.
+        json_data = json.dumps(creds_dict).encode('utf-8')
+        credentials_file = BytesIO(json_data)
 
-        # USAR ESTA FUNCIÓN. FUNCIONA PORQUE LE PASAMOS UN DICCIONARIO.
-        client = gspread.service_account_from_dict(creds_dict) 
+        # 3. Autenticar usando service_account_json con el objeto BytesIO
+        client = gspread.service_account_json(credentials_file) 
         return client
         
     except Exception as e:
-        # Si el error es PermissionError o de formato, lo atrapamos.
-        st.error(f"Error crítico de autenticación. Verifique st.secrets y permisos: {e}")
+        # Si el error persiste, la clave no es válida O la hoja no está compartida.
+        st.error(f"Error CRÍTICO de autenticación. La clave es rechazada. {e}")
         st.stop()
-                
+
 # --- Helpers Actualizados (Google Sheets) ---
 
 @st.cache_data(ttl=3600)
