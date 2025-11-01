@@ -33,12 +33,15 @@ SHEET_IDS = {
 def get_gspread_client():
     try:
         gspread_info = st.secrets["connections"]["gsheets"]
+        
+        # 1. Limpieza y Reconstrucción del diccionario de credenciales
+        private_key_cleaned = gspread_info["private_key"].replace("\\n", "\n")
+
         creds_dict = {
             "type": gspread_info["type"],
             "project_id": gspread_info["project_id"],
             "private_key_id": gspread_info["private_key_id"],
-            # Revertimos '\n' (que pusiste en Secrets) a saltos de línea reales
-            "private_key": gspread_info["private_key"].replace("\\n", "\n"),
+            "private_key": private_key_cleaned,
             "client_email": gspread_info["client_email"],
             "client_id": gspread_info["client_id"],
             "auth_uri": gspread_info["auth_uri"],
@@ -46,12 +49,20 @@ def get_gspread_client():
             "auth_provider_x509_cert_url": gspread_info["auth_provider_x509_cert_url"],
             "client_x509_cert_url": gspread_info["client_x509_cert_url"]
         }
-        client = gspread.service_account_from_dict(creds_dict)
+        
+        # 2. CONVERSIÓN CRÍTICA: Convertir el dict a un objeto JSON en memoria (BytesIO)
+        # Esto resuelve el error "Cannot convert str to a seekable bit stream".
+        json_data = json.dumps(creds_dict).encode('utf-8')
+        credentials_file = BytesIO(json_data)
+
+        # 3. Usar service_account_json con el objeto BytesIO (el método que funciona)
+        client = gspread.service_account_json(credentials_file)
         return client
+        
     except Exception as e:
+        # Asegúrate de que el error de autenticación sea claro.
         st.error(f"Error crítico de autenticación. Verifique st.secrets y permisos: {e}")
         st.stop()
-
 # --- Helpers Actualizados (Google Sheets) ---
 
 @st.cache_data(ttl=3600)
