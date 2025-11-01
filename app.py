@@ -87,16 +87,18 @@ def save_users(u):
     client = get_gspread_client()
     
     try:
-        sh = client.open(GSHEET_USERS_TITLE)
+        # ABRIR HOJA EXISTENTE (y no intentar crearla)
+        sh = client.open(GSHEET_USERS_TITLE) 
         ws = sh.get_worksheet(0)
+        
+        # Limpia y escribe el DataFrame con encabezados
         ws.clear()
         ws.set_dataframe(df, 'A1', include_index=False)
         
     except gspread.exceptions.SpreadsheetNotFound:
-        sh = client.create(GSHEET_USERS_TITLE)
-        sh.share(st.secrets["connections"]["gsheets"]["client_email"], perm_type='user', role='writer')
-        ws = sh.get_worksheet(0)
-        ws.set_dataframe(df, 'A1', include_index=False)
+        # Si la hoja NO EXISTE, es un error fatal (pero el usuario debió crearla)
+        raise Exception(f"CRÍTICO: La hoja de cálculo '{GSHEET_USERS_TITLE}' no existe o no está compartida con el robot.")
+        
 
     load_data_from_sheet.clear() # Invalidar caché
 
