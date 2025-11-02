@@ -1,0 +1,9 @@
+{
+    // Esta línea le dice a Pylance y al editor dónde está el intérprete
+    "python.defaultInterpreterPath": "/Users/alexymontero/Downloads/TrackerApp_V1/venv/bin/python",
+    
+    // Esta línea asegura que el linter (Pylance) sepa que debe usar el intérprete de arriba
+    "python.analysis.extraPaths": [
+        "./venv/lib/python3.13/site-packages" 
+    ]
+}
