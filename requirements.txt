@@ -1,6 +1,12 @@
-streamlit==1.50.0
-gspread==6.2.1
-google-auth==2.41.1
-pandas==2.3.3
-matplotlib==3.10.7
-pillow==11.3.0
+streamlit
+pandas
+matplotlib
+Pillow
+
+# Dependencias de Google Sheets / Conexión
+gspread
+google-auth
+
+# Dependencias de Autenticación OAuth
+streamlit-oauth
+PyJWT
