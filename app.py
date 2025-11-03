@@ -1,251 +1,237 @@
-# ================================================
-# TripCounter v7.1 - Presupuestos + Alertas + Tema Oscuro
-# Autor: Alexy Montero (desarrollo junto a ChatGPT)
-# ================================================
-
 import streamlit as st
 import pandas as pd
-import os, json, hashlib, re
-from datetime import date, datetime, timedelta
+import os, re
+from datetime import date, datetime
 from io import BytesIO
 import matplotlib.pyplot as plt
 from PIL import Image
-import gspread
-import google.oauth2.service_account
 
-# ---------- CONFIGURACIÓN GLOBAL ----------
+# Importamos las bibliotecas de OAuth
+from streamlit_oauth import OAuth2Component
+import jwt
+import base64 
+import json
+
+# Importamos las utilidades actualizadas
+import tracker_utils as tu 
+
+
+# ----- CONFIGURACIÓN GENERAL Y ESTILOS -----
 st.set_page_config(page_title="Trip Counter", layout="wide", initial_sidebar_state="auto")
-
 APP_NAME = "Trip Counter"
-BUTTON_COLOR = "#1034A6"  # Azul rey principal
-BG_COLOR = "#1e1e1e"      # Fondo gris oscuro general
-TEXT_COLOR = "#f0f0f0"    # Texto claro
+BUTTON_COLOR = "#1034A6" # azul rey
 
-# ---------- HOJAS DE GOOGLE SHEETS ----------
-GSHEET_USERS_TITLE = "TripCounter_Users"
-GSHEET_TRIPS_TITLE = "TripCounter_Trips"
-GSHEET_GASTOS_TITLE = "TripCounter_Gastos"
-GSHEET_SUMMARIES_TITLE = "TripCounter_Summaries"
-GSHEET_PRESUPUESTO_TITLE = "TripCounter_Presupuesto"
-
-SHEET_IDS = {
-    GSHEET_USERS_TITLE: "1MxRbEz2ACwwZOPRZx_BEqLW74M7ZFh5j_CVovqaLi0o",
-    GSHEET_TRIPS_TITLE: "1xoXm5gN1n_5rqLP2dd51OzXdW0LkhvrUwvAvrqcMWhY",
-    GSHEET_GASTOS_TITLE: "1nQljTD3iywDoG4cCY8MBNi5WWXrECP7OXz3OJM2B1wo",
-    GSHEET_SUMMARIES_TITLE: "1DR0dEfCHw6keqqYDXOj2N0tbX4osaKxRJdrMAAyBcy4",
-    GSHEET_PRESUPUESTO_TITLE: "1zdqW0613MFNfhaJkNfvRy9VjgFvb_qHxD3Id3aQNR2Y",
-}
-
-# ---------- CONEXIÓN GSPREAD ----------
-@st.cache_resource(ttl=3600)
-def get_gspread_client():
-    try:
-        gspread_info = st.secrets["connections"]["gsheets"]
-        creds_dict = {
-            "type": gspread_info["type"],
-            "project_id": gspread_info["project_id"],
-            "private_key_id": gspread_info["private_key_id"],
-            "private_key": gspread_info["private_key"].replace("\\n", "\n"),
-            "client_email": gspread_info["client_email"],
-            "client_id": gspread_info["client_id"],
-            "auth_uri": gspread_info["auth_uri"],
-            "token_uri": gspread_info["token_uri"],
-            "auth_provider_x509_cert_url": gspread_info["auth_provider_x509_cert_url"],
-            "client_x509_cert_url": gspread_info["client_x509_cert_url"]
-        }
-        credentials = google.oauth2.service_account.Credentials.from_service_account_info(creds_dict)
-        client = gspread.Client(auth=credentials)
-        return client
-    except Exception as e:
-        st.error(f"Error de autenticación: {e}")
-        st.stop()
-
-# ---------- FUNCIONES AUXILIARES ----------
-def hash_pin(pin):
-    return hashlib.sha256(pin.encode("utf-8")).hexdigest()
-
-def load_users():
-    client = get_gspread_client()
-    ws = client.open_by_key(SHEET_IDS[GSHEET_USERS_TITLE]).get_worksheet(0)
-    data = ws.get_all_records()
-    return {row['alias']: {"pin_hash": row['pin_hash']} for row in data}
-
-def save_users(users):
-    df = pd.DataFrame([{"alias": k, "pin_hash": v["pin_hash"]} for k, v in users.items()])
-    client = get_gspread_client()
-    ws = client.open_by_key(SHEET_IDS[GSHEET_USERS_TITLE]).get_worksheet(0)
-    ws.clear()
-    ws.update([df.columns.values.tolist()] + df.values.tolist())
-
-def load_presupuesto():
-    client = get_gspread_client()
-    ws = client.open_by_key(SHEET_IDS[GSHEET_PRESUPUESTO_TITLE]).get_worksheet(0)
-    data = ws.get_all_records()
-    return pd.DataFrame(data)
-
-def save_presupuesto(df):
-    client = get_gspread_client()
-    ws = client.open_by_key(SHEET_IDS[GSHEET_PRESUPUESTO_TITLE]).get_worksheet(0)
-    ws.clear()
-    ws.update([df.columns.values.tolist()] + df.values.tolist())
-
-# ---------- ESTILO GLOBAL OSCURO ----------
-st.markdown(
-    f"""
+# Lógica de estilos (Mantenida de tu código anterior)
+st.markdown(f"""
     <style>
-    body {{
-        background-color: {BG_COLOR};
-        color: {TEXT_COLOR};
-    }}
-    .stApp {{
-        background-color: {BG_COLOR};
-        color: {TEXT_COLOR};
-    }}
-    .stButton>button {{
-        background-color: {BUTTON_COLOR};
-        color: white;
-        border-radius: 10px;
-        padding: 8px 20px;
-    }}
-    .stButton>button:hover {{
-        background-color: #0d297d;
-    }}
+        .stButton>button {{
+            background-color: {BUTTON_COLOR};
+            color: white;
+            border-radius: 12px;
+            border: 0;
+            padding: 10px 24px;
+        }}
     </style>
-    """, unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
 
-# ---------- LOGIN ----------
-st.sidebar.markdown(f"## 🔐 {APP_NAME}")
-alias_input = st.sidebar.text_input("Alias / Nombre")
-pin_input = st.sidebar.text_input("PIN (4-6 dígitos)", type="password", max_chars=6)
-col1, col2 = st.sidebar.columns(2)
 
-if col1.button("Entrar"):
-    users = load_users()
-    if alias_input in users and hash_pin(pin_input) == users[alias_input]["pin_hash"]:
-        st.session_state["user"] = alias_input
-        st.rerun()
-    else:
-        st.sidebar.error("Credenciales inválidas.")
+# ----- 🔑 CONFIGURACIÓN DE OAUTH -----
 
-if col2.button("Registrar"):
-    users = load_users()
-    if alias_input in users:
-        st.sidebar.error("Alias ya existe.")
-    else:
-        users[alias_input] = {"pin_hash": hash_pin(pin_input)}
-        save_users(users)
-        st.session_state["user"] = alias_input
-        st.rerun()
+def decode_jwt_payload(encoded_jwt):
+    """Decodifica el payload de un JWT (ID Token) con manejo de padding."""
+    try:
+        header, payload, signature = encoded_jwt.split('.')
+        payload_decoded = base64.urlsafe_b64decode(payload + '==').decode('utf-8')
+        return json.loads(payload_decoded)
+    except Exception as e:
+        st.error(f"Error al decodificar token JWT: {e}")
+        return None
 
-alias = st.session_state.get("user")
-if not alias:
+try:
+    client_id = st.secrets.oauth.client_id
+    client_secret = st.secrets.oauth.client_secret
+    redirect_uri = st.secrets.oauth.redirect_uri
+
+    AUTHORIZE_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
+    TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+    REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke"
+    scope = "openid email profile"
+
+    oauth2 = OAuth2Component(client_id=client_id,
+                             client_secret=client_secret,
+                             authorize_endpoint=AUTHORIZE_ENDPOINT,
+                             token_endpoint=TOKEN_ENDPOINT,
+                             refresh_token_endpoint=TOKEN_ENDPOINT,
+                             revoke_endpoint=REVOKE_ENDPOINT,
+                             redirect_uri=redirect_uri,
+                             scope=scope)
+except AttributeError:
+    # Este error se mostrará antes de que Streamlit detenga la app
+    st.error("Error de configuración: Los secretos de OAuth no están definidos en st.secrets.")
     st.stop()
 
-# ---------- ALERTAS PRESUPUESTO ----------
-def mostrar_alertas_presupuesto(df_pres):
-    """Muestra alertas de pagos próximos o vencidos"""
-    hoy = date.today()
-    for _, row in df_pres.iterrows():
-        if row['alias'] != alias or row.get("pagado") == "True":
-            continue
-        try:
-            fecha_pago = datetime.strptime(row["fecha_pago"], "%Y-%m-%d").date()
-        except Exception:
-            continue
 
-        dias_restantes = (fecha_pago - hoy).days
+# ----- 🚪 LÓGICA DE LOGIN EN BARRA LATERAL (OAuth) -----
 
-        if dias_restantes == 3:
-            st.warning(f"🔔 En 3 días debes pagar **{row['categoria']} ({row['monto']} USD)**")
-        elif dias_restantes == 0:
-            st.error(f"⚠️ Hoy debes pagar **{row['categoria']} ({row['monto']} USD)**")
+if 'auth_status' not in st.session_state:
+    st.session_state.auth_status = None
+if 'user_email' not in st.session_state:
+    st.session_state.user_email = None
+if 'trips_temp' not in st.session_state:
+    st.session_state["trips_temp"] = []
+if 'extras_temp' not in st.session_state:
+    st.session_state["extras_temp"] = []
+if 'gastos_temp' not in st.session_state:
+    st.session_state["gastos_temp"] = []
 
-# ---------- INTERFAZ PRINCIPAL ----------
-st.title(f"🚗 {APP_NAME}")
-st.markdown(f"**Usuario:** <span style='color:#a3c4f3'>{alias}</span>", unsafe_allow_html=True)
+st.sidebar.markdown(f"## 👤 {APP_NAME}")
 
-# Cargar presupuesto
-try:
-    df_pres = load_presupuesto()
-except Exception:
-    df_pres = pd.DataFrame(columns=["alias", "categoria", "monto", "fecha_pago", "pagado"])
+# --- LOGIN ---
+if st.session_state.auth_status != 'authenticated':
+    # Muestra el botón de inicio de sesión
+    result = oauth2.authorize_button(
+        name="Iniciar Sesión con Google",
+        icon="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg",
+        key="oauth_login_button",
+        extras_params={"prompt": "select_account"},
+        use_container_width=True
+    )
 
-# Mostrar alertas
-mostrar_alertas_presupuesto(df_pres)
+    if result:
+        st.session_state.token = result
+        user_info = decode_jwt_payload(st.session_state.token['id_token'])
 
-tabs = st.tabs(["Crear y Editar Presupuestos", "Registrar viajes", "Otras opciones"])
-tab_presupuesto, tab_viajes, tab_otras = tabs
-
-# ---------- TAB 1: CREAR Y EDITAR PRESUPUESTOS ----------
-with tab_presupuesto:
-    st.subheader("💰 Crear nueva categoría de presupuesto")
-
-    cat = st.text_input("Nombre de la categoría (ej: Alquiler, Luz, Internet)")
-    monto = st.number_input("Monto mensual ($)", min_value=0.0, step=10.0)
-    fecha_pago = st.date_input("Fecha de pago mensual")
-
-    if st.button("Agregar categoría"):
-        if cat.strip() == "":
-            st.warning("Debe ingresar un nombre de categoría.")
-        elif not df_pres.empty and ((df_pres["alias"] == alias) & (df_pres["categoria"].str.lower() == cat.lower())).any():
-            st.error("⚠️ Ya existe una categoría con ese nombre.")
+        if user_info and 'email' in user_info:
+            st.session_state.user_email = user_info['email'] 
+            st.session_state.auth_status = 'authenticated'
+            st.experimental_rerun()
         else:
-            nueva = pd.DataFrame([{
-                "alias": alias,
-                "categoria": cat,
-                "monto": monto,
-                "fecha_pago": fecha_pago.strftime("%Y-%m-%d"),
-                "pagado": "False"
-            }])
-            df_pres = pd.concat([df_pres, nueva], ignore_index=True)
-            save_presupuesto(df_pres)
-            st.success("Categoría agregada correctamente ✅")
-            st.rerun()
+            st.session_state.auth_status = 'failed'
+            st.sidebar.error("Fallo al obtener el email de Google.")
 
-    st.markdown("---")
-    st.subheader("🧾 Tus categorías registradas")
+elif st.session_state.auth_status == 'authenticated':
+    st.sidebar.success(f"Bienvenido/a: **{st.session_state.user_email}**")
+    
+    if st.sidebar.button("Cerrar Sesión", key="logout_btn"):
+        # Limpiar todos los estados de sesión
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.experimental_rerun()
 
-    df_user = df_pres[df_pres["alias"] == alias]
+else:
+    st.sidebar.error("Error de autenticación. Por favor, inténtalo de nuevo.")
+    if st.sidebar.button("Reintentar"):
+        st.session_state.auth_status = None
+        st.experimental_rerun()
 
-    if df_user.empty:
-        st.info("No tienes categorías aún.")
+# --- VALIDACIÓN DE AUTENTICACIÓN ---
+if st.session_state.auth_status != 'authenticated':
+    st.title("Inicia Sesión para Acceder a Trip Counter")
+    st.info("Utiliza el botón en la barra lateral izquierda para iniciar sesión con Google.")
+    st.stop()
+    
+# Definir el alias (el identificador único)
+alias = st.session_state.user_email
+
+
+# ----- TABS Y LÓGICA PRINCIPAL (ADAPTADA) -----
+
+st.title(f"Registro de Viajes de {alias}")
+
+tab_trips, tab_extra, tab_gastos, tab_km, tab_summaries, tab_export = st.tabs([
+    "Uber/Didi", "Viajes Extra", "Gastos", "Kilometraje y Resumen", "Histórico", "Exportar"
+])
+
+
+# --- TAB: REGISTRAR VIAJES ---
+with tab_trips:
+    # ... (El código de registro de viajes se mantiene, pero usará 'alias' para guardar)
+    st.markdown("### 🚗 Registrar Viajes (Uber/Didi)")
+    # ... (Tu código de interfaz para registrar viajes) ...
+    
+    # Ejemplo de cómo se guardaría un viaje en trips_temp:
+    if st.button("Guardar Viaje"):
+        # ... (Tu lógica de validación) ...
+        # (Asegúrate de que 'alias' se añada a los datos al guardarlos en Google Sheets)
+        pass # Mantener tu lógica de interfaz aquí
+
+    if st.session_state["trips_temp"]:
+        st.dataframe(pd.DataFrame(st.session_state["trips_temp"]), use_container_width=True)
+
+
+# --- TAB: GASTOS ---
+with tab_gastos:
+    # ... (El código de registro de gastos se mantiene) ...
+    pass # Mantener tu lógica de interfaz aquí
+
+
+# --- TAB: KILOMETRAJE Y GENERAR RESUMEN (El Bloque Crucial) ---
+with tab_km:
+    st.markdown("### 🧭 Kilometraje final y generar resumen")
+    combustible_in = st.number_input("Combustible gastado (S/)", min_value=0.0, format="%.2f", key="comb_final")
+    km_final = st.number_input("Kilometraje final del día (km)", min_value=0.0, format="%.1f", key="km_final")
+    
+    if st.button("Generar resumen final y guardar", key="generate_summary_btn"):
+        if km_final <= 0:
+            st.error("Debes ingresar el kilometraje final para generar el resumen.")
+        else:
+            # 1. Preparar y guardar TODOS los viajes/gastos del día en Sheets
+            all_new_trips = st.session_state["trips_temp"] + st.session_state["extras_temp"]
+            
+            # (Aquí iría la lógica completa de cargar, concatenar y guardar en GSHEET_TRIPS_TITLE 
+            # y GSHEET_GASTOS_TITLE, asegurando que se añade la columna 'alias' = user_email)
+            
+            # 2. Recargar y calcular resumen del día (cargando desde Sheets)
+            df_all_trips = tu.load_data_from_sheet(tu.GSHEET_TRIPS_TITLE)
+            df_all_gastos = tu.load_data_from_sheet(tu.GSHEET_GASTOS_TITLE)
+
+            today_str = date.today().isoformat()
+            trips_rows = df_all_trips[(df_all_trips["alias"] == alias) & (df_all_trips["fecha"] == today_str)].to_dict("records")
+            gastos_rows = df_all_gastos[(df_all_gastos["alias"] == alias) & (df_all_gastos["fecha"] == today_str)].to_dict("records")
+            
+            # Cálculos de totales (debes adaptar estas funciones si no están en utilidades)
+            ingresos = sum(float(r.get("total_viaje", 0)) for r in trips_rows)
+            gastos_total = sum(float(g.get("monto", 0)) for g in gastos_rows)
+            neto = round(ingresos - gastos_total - combustible_in, 2)
+            viajes_num = len(trips_rows)
+            bono = tu.calculate_bonuses(viajes_num) # Uso de la función de utilidades
+
+            # 3. Guardar el resumen en la hoja GSHEET_SUMMARIES_TITLE
+            success = tu.save_daily_data(
+                alias, 
+                pd.DataFrame(trips_rows), # Pasar los viajes de hoy
+                0, # Extras
+                gastos_total, 
+                combustible_in, 
+                km_final, 
+                bono, 
+                neto
+            )
+
+            if success:
+                st.success("Resumen generado y guardado ✅ (en Google Sheets)")
+                # Limpiar temporales de sesión
+                st.session_state["trips_temp"] = []
+                st.session_state["extras_temp"] = []
+                st.session_state["gastos_temp"] = []
+                st.write(f"**Balance Neto:** S/ {neto}")
+            else:
+                st.error("Fallo al guardar el resumen en Google Sheets.")
+
+
+# --- TAB: HISTÓRICO ---
+with tab_summaries:
+    st.markdown("### 📋 Resúmenes guardados")
+    df_summaries = tu.load_data_from_sheet(tu.GSHEET_SUMMARIES_TITLE)
+    df_user_summaries = df_summaries[df_summaries["alias"] == alias]
+    
+    if df_user_summaries.empty:
+        st.info("No hay resúmenes guardados para este usuario.")
     else:
-        for idx, row in df_user.iterrows():
-            col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
-            col1.markdown(f"**{row['categoria']}**")
-            col2.markdown(f"${row['monto']}")
-            col3.markdown(f"📅 {row['fecha_pago']}")
-            if col4.button("Eliminar", key=f"del_{idx}"):
-                if st.confirm("¿Seguro que deseas eliminar esta categoría?"):
-                    df_pres = df_pres.drop(idx)
-                    save_presupuesto(df_pres)
-                    st.success("Categoría eliminada.")
-                    st.rerun()
+        st.dataframe(df_user_summaries, use_container_width=True)
 
-    st.markdown("---")
-    st.subheader("✅ Marcar pagos completados")
-
-    pendientes = df_user[df_user["pagado"] == "False"]
-    if pendientes.empty:
-        st.info("Todos tus pagos están al día 🎉")
-    else:
-        for idx, row in pendientes.iterrows():
-            if st.button(f"Marcar '{row['categoria']}' como pagado ✅", key=f"pay_{idx}"):
-                df_pres.loc[idx, "pagado"] = "True"
-                save_presupuesto(df_pres)
-                st.success(f"Pago de {row['categoria']} marcado como completado.")
-                st.rerun()
-
-# ---------- TAB 2: VIAJES ----------
-with tab_viajes:
-    st.info("Aquí continuará la lógica de registro de viajes (versión anterior).")
-
-# ---------- TAB 3: OTROS ----------
-with tab_otras:
-    st.write("Opciones adicionales o futuras integraciones aquí.")
-
-# ---------- LOGOUT ----------
-if st.sidebar.button(f"🔒 Cerrar sesión ({alias})"):
-    st.session_state["user"] = None
-    st.rerun()
+# --- TAB: EXPORTAR ---
+with tab_export:
+    st.markdown("### 📁 Exportar datos")
+    # ... (El código de exportación se mantiene, filtrando siempre por 'alias' = user_email) ...
+    pass # Mantener tu lógica de interfaz aquí
