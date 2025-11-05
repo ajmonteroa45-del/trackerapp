@@ -2,9 +2,23 @@ import streamlit as st
 import pandas as pd
 import os, re
 from datetime import date, datetime
+import os, re
+from datetime import date, datetime
 from io import BytesIO
 import matplotlib.pyplot as plt
 from PIL import Image
+
+# Importamos las bibliotecas de OAuth
+from streamlit_oauth import OAuth2Component
+import jwt
+import base64 
+import json
+
+# Importamos las utilidades actualizadas
+import tracker_utils as tu 
+
+
+# ----- CONFIGURACIÓN GENERAL Y ESTILOS -----
 
 # Importamos las bibliotecas de OAuth
 from streamlit_oauth import OAuth2Component
@@ -22,8 +36,19 @@ APP_NAME = "Trip Counter"
 BUTTON_COLOR = "#1034A6" # azul rey
 
 # Lógica de estilos (Mantenida de tu código anterior)
+st.markdown()
+BUTTON_COLOR = "#1034A6" # azul rey
+
+# Lógica de estilos (Mantenida de tu código anterior)
 st.markdown(f"""
     <style>
+        .stButton>button {{
+            background-color: {BUTTON_COLOR};
+            color: white;
+            border-radius: 12px;
+            border: 0;
+            padding: 10px 24px;
+        }}
         .stButton>button {{
             background-color: {BUTTON_COLOR};
             color: white;

@@ -82,4 +82,7 @@ def save_daily_data(user_email, df_trips, extras, gastos, combustible, km, bono,
         return True
     except Exception as e:
         st.error(f"Error al guardar resumen en Google Sheets: {e}")
+
+        return False
+
         return False
