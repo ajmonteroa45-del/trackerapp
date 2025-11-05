@@ -2,23 +2,9 @@ import streamlit as st
 import pandas as pd
 import os, re
 from datetime import date, datetime
-import os, re
-from datetime import date, datetime
 from io import BytesIO
 import matplotlib.pyplot as plt
 from PIL import Image
-
-# Importamos las bibliotecas de OAuth
-from streamlit_oauth import OAuth2Component
-import jwt
-import base64 
-import json
-
-# Importamos las utilidades actualizadas
-import tracker_utils as tu 
-
-
-# ----- CONFIGURACIÓN GENERAL Y ESTILOS -----
 
 # Importamos las bibliotecas de OAuth
 from streamlit_oauth import OAuth2Component
@@ -36,19 +22,8 @@ APP_NAME = "Trip Counter"
 BUTTON_COLOR = "#1034A6" # azul rey
 
 # Lógica de estilos (Mantenida de tu código anterior)
-st.markdown()
-BUTTON_COLOR = "#1034A6" # azul rey
-
-# Lógica de estilos (Mantenida de tu código anterior)
 st.markdown(f"""
     <style>
-        .stButton>button {{
-            background-color: {BUTTON_COLOR};
-            color: white;
-            border-radius: 12px;
-            border: 0;
-            padding: 10px 24px;
-        }}
         .stButton>button {{
             background-color: {BUTTON_COLOR};
             color: white;
@@ -63,32 +38,27 @@ st.markdown(f"""
 # ----- 🔑 CONFIGURACIÓN DE OAUTH -----
 
 def decode_jwt_payload(encoded_jwt):
-    """Decodifica el payload de un JWT (ID Token) con manejo de padding."""
+    """Decodifica el payload de un JWT (ID Token) con manejo de padding.)"""
     try:
         header, payload, signature = encoded_jwt.split('.')
         payload_decoded = base64.urlsafe_b64decode(payload + '==').decode('utf-8')
         return json.loads(payload_decoded)
     except Exception as e:
-        # Nota: Puedes necesitar el import 'jwt' si falla la decodificación.
         st.error(f"Error al decodificar token JWT: {e}")
         return None
 
 try:
     client_id = st.secrets.oauth.client_id
     client_secret = st.secrets.oauth.client_secret
-    # Mantenemos redirect_uri aquí porque lo necesitamos para el botón, 
-    # aunque lo quitamos del constructor.
     redirect_uri = st.secrets.oauth.redirect_uri 
 
     AUTHORIZE_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
     TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
     REFRESH_TOKEN_ENDPOINT = TOKEN_ENDPOINT
-    # REVOKE_ENDPOINT: Eliminado ya que la versión antigua no lo soporta.
     scope = "openid email profile"
 
-    # --- INICIALIZACIÓN DE OAUTH2COMPONENT MODIFICADA ---
-    # Se eliminan los argumentos 'redirect_uri' y 'revoke_endpoint' 
-    # para ser compatible con streamlit-oauth==0.1.14
+    # --- INICIALIZACIÓN DE OAUTH2COMPONENT MODIFICADA (Compatible con 0.1.14) ---
+    # Se eliminaron 'redirect_uri' y 'revoke_endpoint' del constructor.
     oauth2 = OAuth2Component(client_id=client_id,
                              client_secret=client_secret,
                              authorize_endpoint=AUTHORIZE_ENDPOINT,
@@ -99,9 +69,6 @@ except AttributeError:
     st.error("Error de configuración: Los secretos de OAuth no están definidos en st.secrets.")
     st.stop()
     
-# ... (El resto del código es el mismo que antes, pero ahora es compatible con la versión instalada) ...
-
-
 # ----- 🚪 LÓGICA DE LOGIN EN BARRA LATERAL (OAuth) -----
 
 if 'auth_status' not in st.session_state:
@@ -119,15 +86,13 @@ st.sidebar.markdown(f"## 👤 {APP_NAME}")
 
 # --- LOGIN ---
 if st.session_state.auth_status != 'authenticated':
-    # Muestra el botón de inicio de sesión
-    # CRUCIAL: Pasamos el redirect_uri al método del botón, como requiere la versión antigua.
     result = oauth2.authorize_button(
         name="Iniciar Sesión con Google",
         icon="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg",
         key="oauth_login_button",
         extras_params={"prompt": "select_account"},
         use_container_width=True,
-        redirect_uri=redirect_uri, # <--- ESTO ES VITAL PARA LA VERSIÓN ANTIGUA
+        redirect_uri=redirect_uri, # VITAL para la versión 0.1.14
         scope=scope,
     )
 
