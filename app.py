@@ -21,7 +21,17 @@ st.set_page_config(page_title="Trip Counter", layout="wide", initial_sidebar_sta
 APP_NAME = "Trip Counter"
 BUTTON_COLOR = "#1034A6" # azul rey
 
-# Lógica de estilos (Mantenida de tu código anterior)
+# ====================================================================
+# === 🚨 ELEMENTOS NECESARIOS PARA LA VERIFICACIÓN DE GOOGLE 🚨 ===
+# ====================================================================
+
+# 1. ETIQUETA META PARA VERIFICACIÓN DE PROPIEDAD DE DOMINIO (Google Search Console)
+# ¡RELLENA ESTO con el código que te dio Google Search Console!
+st.markdown("""
+    <meta name="google-site-verification" content="[TU CÓDIGO ÚNICO DE VERIFICACIÓN]" />
+""", unsafe_allow_html=True) 
+
+# Lógica de estilos
 st.markdown(f"""
     <style>
         .stButton>button {{
@@ -58,7 +68,6 @@ try:
     scope = "openid email profile"
 
     # --- INICIALIZACIÓN DE OAUTH2COMPONENT MODIFICADA (Compatible con 0.1.14) ---
-    # Se eliminaron 'redirect_uri' y 'revoke_endpoint' del constructor.
     oauth2 = OAuth2Component(client_id=client_id,
                              client_secret=client_secret,
                              authorize_endpoint=AUTHORIZE_ENDPOINT,
@@ -86,13 +95,22 @@ st.sidebar.markdown(f"## 👤 {APP_NAME}")
 
 # --- LOGIN ---
 if st.session_state.auth_status != 'authenticated':
+    # 2. ENLACE A POLÍTICA DE PRIVACIDAD EN LA PÁGINA DE INICIO (Visible)
+    st.markdown(
+        f'<div style="text-align: center; margin-bottom: 1rem; font-size: small;">'
+        f'Esta aplicación requiere iniciar sesión con Google.<br>'
+        f'Lee nuestra <a href="[TU URL COMPLETA DE POLÍTICA DE PRIVACIDAD]" target="_blank">Política de Privacidad</a>.'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+
     result = oauth2.authorize_button(
         name="Iniciar Sesión con Google",
         icon="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg",
         key="oauth_login_button",
         extras_params={"prompt": "select_account"},
         use_container_width=True,
-        redirect_uri=redirect_uri, # VITAL para la versión 0.1.14
+        redirect_uri=redirect_uri, 
         scope=scope,
     )
 
