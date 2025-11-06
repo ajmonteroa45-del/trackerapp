@@ -25,11 +25,8 @@ BUTTON_COLOR = "#1034A6" # azul rey
 # === 🚨 ELEMENTOS NECESARIOS PARA LA VERIFICACIÓN DE GOOGLE 🚨 ===
 # ====================================================================
 
-# 1. ETIQUETA META PARA VERIFICACIÓN DE PROPIEDAD DE DOMINIO (Google Search Console)
-# ¡RELLENA ESTO con el código que te dio Google Search Console!
-st.markdown("""
-    <meta name="google-site-verification" content="[TU CÓDIGO ÚNICO DE VERIFICACIÓN]" />
-""", unsafe_allow_html=True) 
+# Nota: El bloque de la etiqueta Meta HTML ha sido ELIMINADO porque la verificación
+# de dominio se completó exitosamente vía DNS.
 
 # Lógica de estilos
 st.markdown(f"""
@@ -95,11 +92,11 @@ st.sidebar.markdown(f"## 👤 {APP_NAME}")
 
 # --- LOGIN ---
 if st.session_state.auth_status != 'authenticated':
-    # 2. ENLACE A POLÍTICA DE PRIVACIDAD EN LA PÁGINA DE INICIO (Visible)
+    # ESTE ENLACE ES OBLIGATORIO: Asegúrate de que [TU URL COMPLETA DE POLÍTICA DE PRIVACIDAD] esté rellenado
     st.markdown(
         f'<div style="text-align: center; margin-bottom: 1rem; font-size: small;">'
         f'Esta aplicación requiere iniciar sesión con Google.<br>'
-        f'Lee nuestra <a href="[TU URL COMPLETA DE POLÍTICA DE PRIVACIDAD]" target="_blank">Política de Privacidad</a>.'
+        f'Lee nuestra <a href="https://github.com/ajmonteroa45-del/trackerapp/blob/main/POLITICA_PRIVACIDAD.md" target="_blank">Política de Privacidad</a>.'
         f'</div>',
         unsafe_allow_html=True
     )
@@ -156,7 +153,3 @@ st.title(f"Registro de Viajes de {alias}")
 tab_trips, tab_extra, tab_gastos, tab_km, tab_summaries, tab_export = st.tabs([
     "Uber/Didi", "Viajes Extra", "Gastos", "Kilometraje y Resumen", "Histórico", "Exportar"
 ])
-
-# ... (El resto de las pestañas sigue igual, usando 'alias' = st.session_state.user_email)
-# Solo asegúrate de que tu lógica de guardado en la pestaña 'Kilometraje y Resumen'
-# esté completa como lo discutimos anteriormente.
