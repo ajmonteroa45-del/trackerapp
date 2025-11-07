@@ -13,30 +13,45 @@ import base64
 import json
 
 # Importamos las utilidades actualizadas
+# Asegúrate de que este archivo esté limpio de conflictos.
 import tracker_utils as tu 
 
 
 # ----- CONFIGURACIÓN GENERAL Y ESTILOS -----
 st.set_page_config(page_title="Trip Counter", layout="wide", initial_sidebar_state="auto")
 APP_NAME = "Trip Counter"
-BUTTON_COLOR = "#1034A6" # azul rey
+BUTTON_COLOR = "#1034A6" # Color de tu marca (azul rey)
 
-# ====================================================================
-# === 🚨 ELEMENTOS NECESARIOS PARA LA VERIFICACIÓN DE GOOGLE 🚨 ===
-# ====================================================================
 
-# Nota: El bloque de la etiqueta Meta HTML ha sido ELIMINADO porque la verificación
-# de dominio se completó exitosamente vía DNS.
-
-# Lógica de estilos
+# Lógica de inyección de estilos (Corrige los errores y añade el fondo y opacidad)
 st.markdown(f"""
     <style>
+        /* 1. ESTILO PARA LOS BOTONES */
         .stButton>button {{
             background-color: {BUTTON_COLOR};
             color: white;
             border-radius: 12px;
             border: 0;
             padding: 10px 24px;
+        }}
+
+        /* 2. BACKGROUND CON IMAGEN (Mejora Visual) */
+        [data-testid="stAppViewContainer"] > .main {{
+            /* 🛑 REEMPLAZA ESTA URL con la URL RAW de tu imagen en GitHub 🛑 */
+            background-image: url("https://github.com/ajmonteroa45-del/trackerapp/blob/main/assets/background.jpg?raw=true"); 
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed; 
+        }}
+
+        /* 3. HACER QUE EL TEXTO Y SIDEBAR RESALTEN (USANDO COLORES DE TU TEMA OSCURO) */
+        /* Hacemos el sidebar y header semi-transparentes para que se vea la imagen, pero el texto se lea */
+        [data-testid="stHeader"] {{
+            background-color: rgba(12, 21, 42, 0.7); 
+        }}
+        [data-testid="stSidebar"] {{
+            background-color: rgba(26, 43, 66, 0.8); 
+            color: white;
         }}
     </style>
 """, unsafe_allow_html=True)
@@ -51,7 +66,7 @@ def decode_jwt_payload(encoded_jwt):
         payload_decoded = base64.urlsafe_b64decode(payload + '==').decode('utf-8')
         return json.loads(payload_decoded)
     except Exception as e:
-        st.error(f"Error al decodificar token JWT: {e}")
+        # En caso de error, no muestra el token
         return None
 
 try:
@@ -64,7 +79,7 @@ try:
     REFRESH_TOKEN_ENDPOINT = TOKEN_ENDPOINT
     scope = "openid email profile"
 
-    # --- INICIALIZACIÓN DE OAUTH2COMPONENT MODIFICADA (Compatible con 0.1.14) ---
+    # --- INICIALIZACIÓN DE OAUTH2COMPONENT ---
     oauth2 = OAuth2Component(client_id=client_id,
                              client_secret=client_secret,
                              authorize_endpoint=AUTHORIZE_ENDPOINT,
@@ -88,15 +103,27 @@ if 'extras_temp' not in st.session_state:
 if 'gastos_temp' not in st.session_state:
     st.session_state["gastos_temp"] = []
 
+
+# -----------------------------------
+# LÓGICA DE INTERFAZ VISUAL: LOGO y CABECERA
+# -----------------------------------
 st.sidebar.markdown(f"## 👤 {APP_NAME}")
+
+try:
+    # Coloca tu logo en la parte superior de la barra lateral
+    # Asegúrate de que tu logo se llama 'logo.png' y está en la carpeta 'assets'.
+    st.sidebar.image("assets/logo.png", use_column_width=True) 
+    st.sidebar.markdown("---")
+except FileNotFoundError:
+    st.sidebar.warning("Logo no encontrado. Verifica la ruta 'assets/logo.png'.")
 
 # --- LOGIN ---
 if st.session_state.auth_status != 'authenticated':
-    # ESTE ENLACE ES OBLIGATORIO: Asegúrate de que [TU URL COMPLETA DE POLÍTICA DE PRIVACIDAD] esté rellenado
+    # ENLACE A POLÍTICA DE PRIVACIDAD (USANDO EL SUBDOMINIO DE GO DADDY)
     st.markdown(
         f'<div style="text-align: center; margin-bottom: 1rem; font-size: small;">'
         f'Esta aplicación requiere iniciar sesión con Google.<br>'
-        f'Lee nuestra <a href="https://github.com/ajmonteroa45-del/trackerapp/blob/main/POLITICA_PRIVACIDAD.md" target="_blank">Política de Privacidad</a>.'
+        f'Lee nuestra <a href="https://policy.tripcounter.online" target="_blank">Política de Privacidad</a>.'
         f'</div>',
         unsafe_allow_html=True
     )
@@ -153,3 +180,6 @@ st.title(f"Registro de Viajes de {alias}")
 tab_trips, tab_extra, tab_gastos, tab_km, tab_summaries, tab_export = st.tabs([
     "Uber/Didi", "Viajes Extra", "Gastos", "Kilometraje y Resumen", "Histórico", "Exportar"
 ])
+
+# Lógica de las pestañas aquí (Asumiendo que esta lógica ya estaba en tu código original)
+# ...
