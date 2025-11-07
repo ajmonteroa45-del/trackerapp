@@ -112,7 +112,7 @@ st.sidebar.markdown(f"## 👤 {APP_NAME}")
 try:
     # Coloca tu logo en la parte superior de la barra lateral
     # Asegúrate de que tu logo se llama 'logo.png' y está en la carpeta 'assets'.
-    st.sidebar.image("assets/logo.png", use_column_width=True) 
+    st.sidebar.image("assets/logo.png", use_container_width=True) 
     st.sidebar.markdown("---")
 except FileNotFoundError:
     st.sidebar.warning("Logo no encontrado. Verifica la ruta 'assets/logo.png'.")
