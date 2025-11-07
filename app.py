@@ -25,6 +25,8 @@ BUTTON_COLOR = "#1034A6" # Color de tu marca (azul rey)
 
 # Lógica de inyección de estilos (Solución FINAL para la imagen de fondo)
 # Nota: La URL de la imagen (postimages) DEBE ser pública y estable.
+# Lógica de inyección de estilos (Solución FINAL para la imagen de fondo)
+# Nota: La URL de la imagen (postimages) DEBE ser pública y estable.
 st.markdown(f"""
     <style>
         /* 0. FUERZA LA TRANSPARENCIA EN EL CUERPO (Good Practice) */
@@ -42,13 +44,19 @@ st.markdown(f"""
         }}
 
         /* 2. BACKGROUND CON IMAGEN (Nivel 1: El cuerpo principal de la App) */
-        /* Forzamos la imagen y transparencia al contenedor de la aplicación */
         [data-testid="stAppViewContainer"] {{
             /* URL DIRECTA DE POSTIMAGES */
             background-image: url("https://i.postimg.cc/jjnwRQ64/backgroun1.png") !important; 
-            background-size: cover !important; /* Asegura que la imagen cubra todo el espacio */
-            background-attachment: fixed !important; /* Fija la imagen para que no se mueva al hacer scroll */
-            background-position: center center !important; /* Centra la imagen */
+            background-size: cover !important; 
+            background-attachment: fixed !important; 
+            
+            /* 🟢 CORRECCIÓN DE POSICIÓN: Mantiene la parte superior visible */
+            background-position: center top !important; 
+            
+            /* 🟢 AUMENTO DE TRANSPARENCIA: Aplica un filtro oscuro a toda la imagen de fondo */
+            /* Usamos un degradado para oscurecer la imagen y aumentar el contraste del texto */
+            background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("https://i.postimg.cc/jjnwRQ64/backgroun1.png") !important; 
+            
             background-color: transparent !important;
         }}
         
@@ -61,17 +69,18 @@ st.markdown(f"""
         
         /* 4. HACER QUE LOS HEADERS Y TEXTO SE VEAN BIEN SOBRE EL FONDO */
         h1, h2, h3, h4, .stMarkdown, .stInfo, .stSuccess, .stError {{
-            color: white !important; /* Color blanco para el texto sobre el fondo oscuro */
-            /* Agregamos una sombra de texto ligera para mejorar la legibilidad */
+            color: white !important;
             text-shadow: 2px 2px 4px #000000; 
         }}
 
         /* 5. HACER QUE EL SIDEBAR RESALTE */
         [data-testid="stHeader"] {{
-            background-color: rgba(12, 21, 42, 0.7) !important; 
+            /* 🟢 Sidebar más oscuro para mayor contraste (70% de opacidad) */
+            background-color: rgba(12, 21, 42, 0.85) !important; 
         }}
         [data-testid="stSidebar"] {{
-            background-color: rgba(26, 43, 66, 0.8) !important; 
+            /* 🟢 Sidebar más oscuro para mayor contraste (80% de opacidad) */
+            background-color: rgba(26, 43, 66, 0.9) !important; 
             color: white;
         }}
         
