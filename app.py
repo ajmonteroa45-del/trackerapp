@@ -45,7 +45,7 @@ st.markdown(f"""
         /* Forzamos la imagen y transparencia al contenedor de la aplicación */
         [data-testid="stAppViewContainer"] {{
             /* URL DIRECTA DE POSTIMAGES */
-            background-image: url("https://i.postimg.cc/Zvp9CHdC/background.jpg") !important; 
+            background-image: url("https://i.postimg.cc/jjnwRQ64/backgroun1.png") !important; 
             background-size: cover !important; /* Asegura que la imagen cubra todo el espacio */
             background-attachment: fixed !important; /* Fija la imagen para que no se mueva al hacer scroll */
             background-position: center center !important; /* Centra la imagen */
