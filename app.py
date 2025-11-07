@@ -13,19 +13,25 @@ import base64
 import json
 
 # Importamos las utilidades actualizadas
-# Asegúrate de que este archivo esté limpio de conflictos.
+# Asegúrate de que este archivo 'tracker_utils.py' esté disponible.
 import tracker_utils as tu 
 
 
 # ----- CONFIGURACIÓN GENERAL Y ESTILOS -----
+# Revisión: Se mantiene solo una vez y se recomienda el layout "wide"
 st.set_page_config(page_title="Trip Counter", layout="wide", initial_sidebar_state="auto")
 APP_NAME = "Trip Counter"
 BUTTON_COLOR = "#1034A6" # Color de tu marca (azul rey)
 
-
-# Lógica de inyección de estilos (Corrige los errores y añade el fondo y opacidad)
+# Lógica de inyección de estilos (Solución FINAL para la imagen de fondo)
+# Nota: La URL de la imagen (postimages) DEBE ser pública y estable.
 st.markdown(f"""
     <style>
+        /* 0. FUERZA LA TRANSPARENCIA EN EL CUERPO (Good Practice) */
+        body {{
+            background-color: transparent !important;
+        }}
+
         /* 1. ESTILO PARA LOS BOTONES */
         .stButton>button {{
             background-color: {BUTTON_COLOR};
@@ -35,24 +41,46 @@ st.markdown(f"""
             padding: 10px 24px;
         }}
 
-        /* 2. BACKGROUND CON IMAGEN (Mejora Visual) */
+        /* 2. BACKGROUND CON IMAGEN (Nivel 1: El cuerpo principal de la App) */
+        /* Forzamos la imagen y transparencia al contenedor de la aplicación */
+        [data-testid="stAppViewContainer"] {{
+            /* URL DIRECTA DE POSTIMAGES */
+            background-image: url("https://i.postimg.cc/Zvp9CHdC/background.jpg") !important; 
+            background-size: cover !important; /* Asegura que la imagen cubra todo el espacio */
+            background-attachment: fixed !important; /* Fija la imagen para que no se mueva al hacer scroll */
+            background-position: center center !important; /* Centra la imagen */
+            background-color: transparent !important;
+        }}
+        
+        /* 3. FONDO TRANSPARENTE EN EL CONTENIDO PRINCIPAL */
+        /* Hacemos que el contenedor principal de contenido sea transparente */
         [data-testid="stAppViewContainer"] > .main {{
-            /* 🛑 REEMPLAZA ESTA URL con la URL RAW de tu imagen en GitHub 🛑 */
-            background-image: url("https://i.postimg.cc/Zvp9CHdC/background.jpg"); 
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed; 
+            background-image: none !important; 
+            background-color: transparent !important; 
+        }}
+        
+        /* 4. HACER QUE LOS HEADERS Y TEXTO SE VEAN BIEN SOBRE EL FONDO */
+        h1, h2, h3, h4, .stMarkdown, .stInfo, .stSuccess, .stError {{
+            color: white !important; /* Color blanco para el texto sobre el fondo oscuro */
+            /* Agregamos una sombra de texto ligera para mejorar la legibilidad */
+            text-shadow: 2px 2px 4px #000000; 
         }}
 
-        /* 3. HACER QUE EL TEXTO Y SIDEBAR RESALTEN (USANDO COLORES DE TU TEMA OSCURO) */
-        /* Hacemos el sidebar y header semi-transparentes para que se vea la imagen, pero el texto se lea */
+        /* 5. HACER QUE EL SIDEBAR RESALTE */
         [data-testid="stHeader"] {{
-            background-color: rgba(12, 21, 42, 0.7); 
+            background-color: rgba(12, 21, 42, 0.7) !important; 
         }}
         [data-testid="stSidebar"] {{
-            background-color: rgba(26, 43, 66, 0.8); 
+            background-color: rgba(26, 43, 66, 0.8) !important; 
             color: white;
         }}
+        
+        /* Hacemos que los widgets dentro del sidebar también sean más legibles */
+        [data-testid="stSidebar"] .stMarkdown {{
+            color: white !important; 
+            text-shadow: none;
+        }}
+        
     </style>
 """, unsafe_allow_html=True)
 
@@ -63,10 +91,12 @@ def decode_jwt_payload(encoded_jwt):
     """Decodifica el payload de un JWT (ID Token) con manejo de padding.)"""
     try:
         header, payload, signature = encoded_jwt.split('.')
+        # Agrega padding si es necesario
         payload_decoded = base64.urlsafe_b64decode(payload + '==').decode('utf-8')
         return json.loads(payload_decoded)
     except Exception as e:
         # En caso de error, no muestra el token
+        # st.error(f"Error al decodificar JWT: {e}") # Se comenta para evitar mostrar errores al usuario
         return None
 
 try:
@@ -79,7 +109,7 @@ try:
     REFRESH_TOKEN_ENDPOINT = TOKEN_ENDPOINT
     scope = "openid email profile"
 
-    # --- INICIALIZACIÓN DE OAUTH2COMPONENT ---
+    # --- INICIALIZACIÓN DE OAUTH2COMPONENT (Compatible con 0.1.14) ---
     oauth2 = OAuth2Component(client_id=client_id,
                              client_secret=client_secret,
                              authorize_endpoint=AUTHORIZE_ENDPOINT,
@@ -111,7 +141,6 @@ st.sidebar.markdown(f"## 👤 {APP_NAME}")
 
 try:
     # Coloca tu logo en la parte superior de la barra lateral
-    # Asegúrate de que tu logo se llama 'logo.png' y está en la carpeta 'assets'.
     st.sidebar.image("assets/logo.png", use_container_width=True) 
     st.sidebar.markdown("---")
 except FileNotFoundError:
@@ -145,7 +174,7 @@ if st.session_state.auth_status != 'authenticated':
         if user_info and 'email' in user_info:
             st.session_state.user_email = user_info['email'] 
             st.session_state.auth_status = 'authenticated'
-            st.experimental_rerun()
+            st.rerun() # Revisión: Usar st.rerun() en lugar de st.experimental_rerun()
         else:
             st.session_state.auth_status = 'failed'
             st.sidebar.error("Fallo al obtener el email de Google.")
@@ -156,13 +185,13 @@ elif st.session_state.auth_status == 'authenticated':
     if st.sidebar.button("Cerrar Sesión", key="logout_btn"):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
-        st.experimental_rerun()
+        st.rerun() # Revisión: Usar st.rerun() en lugar de st.experimental_rerun()
 
 else:
     st.sidebar.error("Error de autenticación. Por favor, inténtalo de nuevo.")
     if st.sidebar.button("Reintentar"):
         st.session_state.auth_status = None
-        st.experimental_rerun()
+        st.rerun() # Revisión: Usar st.rerun() en lugar de st.experimental_rerun()
 
 # --- VALIDACIÓN DE AUTENTICACIÓN ---
 if st.session_state.auth_status != 'authenticated':
@@ -181,5 +210,8 @@ tab_trips, tab_extra, tab_gastos, tab_km, tab_summaries, tab_export = st.tabs([
     "Uber/Didi", "Viajes Extra", "Gastos", "Kilometraje y Resumen", "Histórico", "Exportar"
 ])
 
-# Lógica de las pestañas aquí (Asumiendo que esta lógica ya estaba en tu código original)
-# ...
+# Aquí iría el contenido de cada pestaña (tu lógica original de la aplicación)
+# Ejemplo:
+with tab_trips:
+    st.header("Registro de Viajes de Plataforma")
+    # ... tu código para registrar viajes aquí ...
