@@ -38,7 +38,7 @@ st.markdown(f"""
         /* 2. BACKGROUND CON IMAGEN (Mejora Visual) */
         [data-testid="stAppViewContainer"] > .main {{
             /* 🛑 REEMPLAZA ESTA URL con la URL RAW de tu imagen en GitHub 🛑 */
-            background-image: url("https://github.com/ajmonteroa45-del/trackerapp/blob/main/assets/background.jpg?raw=true"); 
+            background-image: url("https://postimg.cc/gallery/C0R5k2S"); 
             background-size: cover;
             background-position: center;
             background-attachment: fixed; 
